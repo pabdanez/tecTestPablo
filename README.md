@@ -2,9 +2,10 @@
 
 ## Project configuration
 
-- git
 - g++
 - c++20
 - VS Code
+- Linux
+- git
 
 ## Notes
