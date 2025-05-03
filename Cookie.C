@@ -29,6 +29,7 @@
 #include <string>
 #include <cstring>
 #include <cassert>
+#include <iostream>
 
 static void Free(void *ptr)
 {
@@ -86,62 +87,87 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res)
 }
 #endif
 
+/*=****************************************************************************
+**
+** std::string findValue
+**
+** DESCRIPTION : Look for the specified field in a string and gets its value
+**
+** RETURN VALUE: String containing the value for that field
+**                                                                           */
+/*=***************************************************************************/
+std::string findValue(const std::string& str, const std::string& field)
+{
+   // TODO: IMPROVE SEARCH -> UPPERCASES? QUOTES? WHITE SPACES?
+   std::string foundValue = "";
+   size_t posDomain = str.find(field);
+   if(posDomain != std::string::npos)
+   {
+      size_t posStartDomain = posDomain + field.size();
+      size_t posEndDomain = str.find(";", posDomain);
+      size_t lenDomain = posEndDomain - posStartDomain;
+      foundValue = str.substr(posStartDomain, lenDomain);
+   }
+
+   return foundValue;
+}
+
 class CookieC
 {
  public:
-   static CookieC *Create(const char *Name,
-                          const char *Value,
-                          const char *Domain,
-                          const char *Path,
-                          const char *Secure,
+   static CookieC *Create(const std::string& Name,
+                          const std::string& Value,
+                          const std::string& Domain,
+                          const std::string& Path,
+                          const std::string& Secure,
                           time_t      Expires,
-                          const char *SameSite = nullptr);
+                          const std::string& SameSite= "");
 
    CookieC();
    CookieC(const CookieC &);
    CookieC &operator=(const CookieC &);
    ~CookieC();
 
-   const char *GetName() const;
-   const char *GetValue() const;
-   const char *GetDomain() const;
-   const char *GetPath() const;
+   std::string GetName() const;
+   std::string GetValue() const;
+   std::string GetDomain() const;
+   std::string GetPath() const;
    const char *GetExpires() const;
-   const char *GetSameSite() const;
+   std::string GetSameSite() const;
    bool        IsSecure() const;
    bool        IsHttpOnly() const;
    bool        IsSessionCookie() const;
 
-   bool        FromString(const char *Str, const char *Domain = nullptr);
-   const char *ToString() const;
+   bool        FromString(const std::string& Str = "", const std::string& Domain = "");
+   std::string ToString() const;
 
  private:
-   bool Init(const char *Name,
-             const char *Value,
-             const char *Domain,
-             const char *Path,
-             const char *Secure,
+   bool Init(const std::string& Name,
+             const std::string& Value,
+             const std::string& Domain,
+             const std::string& Path,
+             const std::string& Secure,
              time_t      Expires,
-             const char *SameSite);
+             const std::string& SameSite);
 
    void Assign(const CookieC &rhs);
    void Free();
 
-   void SetName(const char *Name);
-   void SetValue(const char *Value);
-   void SetDomain(const char *Domain);
-   void SetPath(const char *Path);
+   void SetName(const std::string& Name);
+   void SetValue(const std::string& Value);
+   void SetDomain(const std::string& Domain);
+   void SetPath(const std::string& Path);
    void SetExpires(time_t Expires);
    void SetExpires(const char *Expires);
-   void SetSecure(const char *Secure);
+   void SetSecure(const std::string& Secure);
    void SetSecure(bool Secure);
    void SetHttpOnly(bool HttpOnly);
-   void SetSameSite(const char *SameSite);
+   void SetSameSite(const std::string& SameSite);
 
-   char         *mName, *mValue, *mDomain, *mPath, *mExpires;
+   char         *mExpires;
    mutable char *mHeaderFormat;
+   std::string mDomain, mName, mValue, mPath, mSameSite;
    bool          mSecure, mHttpOnly;
-   char         *mSameSite;
 };
 
 /*=****************************************************************************
@@ -229,13 +255,13 @@ int SplitStringIntoItems(const char *Str, char ***ItemListPtr, const char *SepSt
 **    curl_easy_getinfo(CURLINFO_COOKIELIST)
 **                                                                           */
 /*=***************************************************************************/
-CookieC *CookieC::Create(const char *Name,
-                         const char *Value,
-                         const char *Domain,
-                         const char *Path,
-                         const char *Secure,
+CookieC *CookieC::Create(const std::string& Name,
+                         const std::string& Value,
+                         const std::string& Domain,
+                         const std::string& Path,
+                         const std::string& Secure,
                          time_t      Expires,
-                         const char *SameSite)
+                         const std::string& SameSite)
 {
    CookieC *C = NULL;
 
@@ -262,15 +288,15 @@ CookieC *CookieC::Create(const char *Name,
 **                                                                           */
 /*=***************************************************************************/
 CookieC::CookieC() :
-   mName(nullptr),
-   mValue(nullptr),
-   mDomain(nullptr),
-   mPath(nullptr),
+   mName(""),
+   mValue(""),
+   mDomain(""),
+   mPath(""),
    mExpires(nullptr),
    mHeaderFormat(nullptr),
    mSecure(false),
    mHttpOnly(false),
-   mSameSite(nullptr)
+   mSameSite("")
 {
 }
 
@@ -289,13 +315,13 @@ CookieC::CookieC() :
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-bool CookieC::Init(const char *Name,
-                   const char *Value,
-                   const char *Domain,
-                   const char *Path,
-                   const char *Secure,
+bool CookieC::Init(const std::string& Name,
+                   const std::string& Value,
+                   const std::string& Domain,
+                   const std::string& Path,
+                   const std::string& Secure,
                    time_t      Expires,
-                   const char *SameSite)
+                   const std::string& SameSite)
 {
    SetName(Name);
    SetValue(Value);
@@ -319,15 +345,15 @@ bool CookieC::Init(const char *Name,
 /*=***************************************************************************/
 void CookieC::Assign(const CookieC &rhs)
 {
-   mName         = Strdup(rhs.mName);
-   mValue        = Strdup(rhs.mValue);
-   mDomain       = Strdup(rhs.mDomain);
-   mPath         = Strdup(rhs.mPath);
+   mName         = rhs.mName;
+   mValue        = rhs.mValue;
+   mDomain       = rhs.mDomain;
+   mPath         = rhs.mPath;
    mExpires      = Strdup(rhs.mExpires);
    mHeaderFormat = Strdup(rhs.mHeaderFormat);
    mSecure       = rhs.mSecure;
    mHttpOnly     = rhs.mHttpOnly;
-   mSameSite     = Strdup(rhs.mSameSite);
+   mSameSite     = rhs.mSameSite;
 }
 
 /*=****************************************************************************
@@ -341,13 +367,8 @@ void CookieC::Assign(const CookieC &rhs)
 /*=***************************************************************************/
 void CookieC::Free()
 {
-   ::Free(mName);
-   ::Free(mValue);
-   ::Free(mDomain);
-   ::Free(mPath);
    ::Free(mExpires);
    ::Free(mHeaderFormat);
-   ::Free(mSameSite);
 }
 
 /*=****************************************************************************
@@ -406,9 +427,9 @@ CookieC::~CookieC()
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-void CookieC::SetName(const char *Name)
+void CookieC::SetName(const std::string& Name)
 {
-   mName = Strdup(Name);
+   mName = Name;
 }
 
 /*=****************************************************************************
@@ -420,7 +441,7 @@ void CookieC::SetName(const char *Name)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-const char *CookieC::GetName() const
+std::string CookieC::GetName() const
 {
    return mName;
 }
@@ -434,9 +455,9 @@ const char *CookieC::GetName() const
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-void CookieC::SetValue(const char *Value)
+void CookieC::SetValue(const std::string&  Value)
 {
-   mValue = Strdup(Value);
+   mValue = Value;
 }
 
 /*=****************************************************************************
@@ -448,7 +469,7 @@ void CookieC::SetValue(const char *Value)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-const char *CookieC::GetValue() const
+std::string CookieC::GetValue() const
 {
    return mValue;
 }
@@ -462,16 +483,16 @@ const char *CookieC::GetValue() const
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-void CookieC::SetDomain(const char *Domain)
+void CookieC::SetDomain(const std::string& Domain)
 {
-   if (strstr(Domain, "#HttpOnly_"))
+   size_t posSubStr = Domain.find("#HttpOnly_");
+   if(posSubStr == std::string::npos)
    {
-      mDomain   = Strdup(Domain + 10);
-      mHttpOnly = true;
+      mDomain = Domain;
    }
    else
    {
-      mDomain = Strdup(Domain);
+      mDomain = Domain.substr(posSubStr + 10); // 10 = len of "#HttpOnly_"
    }
 }
 
@@ -484,7 +505,7 @@ void CookieC::SetDomain(const char *Domain)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-const char *CookieC::GetDomain() const
+std::string CookieC::GetDomain() const
 {
    return mDomain;
 }
@@ -498,10 +519,10 @@ const char *CookieC::GetDomain() const
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-void CookieC::SetPath(const char *Path)
+void CookieC::SetPath(const std::string& Path)
 {
-   if (strcmp(Path, "unknown") != 0)
-      mPath = Strdup(Path);
+   if (Path != "unknown")
+      mPath = Path;
 }
 
 /*=****************************************************************************
@@ -513,7 +534,7 @@ void CookieC::SetPath(const char *Path)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-const char *CookieC::GetPath() const
+std::string CookieC::GetPath() const
 {
    return mPath;
 }
@@ -596,9 +617,9 @@ const char *CookieC::GetExpires() const
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-void CookieC::SetSecure(const char *Secure)
+void CookieC::SetSecure(const std::string& Secure)
 {
-   mSecure = (StrCaseEq(Secure, "TRUE")) ? true : false;
+   mSecure = (Secure == "TRUE");
 }
 
 void CookieC::SetSecure(bool Secure)
@@ -673,9 +694,9 @@ bool CookieC::IsSessionCookie() const
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-void CookieC::SetSameSite(const char *SameSite)
+void CookieC::SetSameSite(const std::string& SameSite)
 {
-   mSameSite = Strdup(SameSite);
+   mSameSite = SameSite;
 }
 
 /*=****************************************************************************
@@ -687,7 +708,7 @@ void CookieC::SetSameSite(const char *SameSite)
 ** RETURN VALUE: One of the values "Strict", "Lax", or "None"
 **                                                                           */
 /*=***************************************************************************/
-const char *CookieC::GetSameSite() const
+std::string CookieC::GetSameSite() const
 {
    return mSameSite;
 }
@@ -707,93 +728,42 @@ const char *CookieC::GetSameSite() const
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-bool CookieC::FromString(const char *CookieStr, const char *Domain)
+bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain)
 {
-   bool        IsNameSet  = false;
-   char      **Parameters = nullptr;
-   int         Count;
-   int         i;
-   char       *Name;
-   char       *Delim;
-   const char *Value;
-
-   if (Domain)
+   // TODO: Replicate IsNameSet
+   // TODO: Improve search process to handle uppercases, quotes, and whitespaces
+   // TODO: Replicate mechanism to detect name and value
+   if (!Domain.empty())
       SetDomain(Domain);
 
-   Count = SplitStringIntoItems(CookieStr, &Parameters, ";");
-   for (i = 0; i < Count; i++)
+   std::string foundValue = findValue(CookieStr, "name=");
+   if(foundValue != "")
    {
-      Name  = TrimSpaces(Parameters[i]);
-      Delim = strchr(Name, '=');
-      if (Delim)
-      {
-         *Delim = 0; /* Terminate Name                            */
-         Value  = Delim + 1;
-      }
-      else
-         Value = "";
-      if (*Name == 0)
-         continue;
-
-      if (!IsNameSet)
-      {
-         /* First parameter must be Name/Value */
-         if (Name[0] == '"' && Name[strlen(Name) - 1] == '"')
-         {
-            /* Name may be surrounded by double quotes */
-            Name[strlen(Name) - 1] = 0;
-            Name++;
-         }
-         SetName(Name);
-         SetValue(Value);
-         IsNameSet = true;
-         continue;
-      }
-
-      switch (toupper(*Name))
-      {
-         case 'D':
-            if (StrCaseEq(Name, "Domain"))
-               SetDomain(Value);
-            break;
-         case 'E':
-            if (StrCaseEq(Name, "Expires"))
-               SetExpires(Value);
-            break;
-         case 'H':
-            if (StrCaseEq(Name, "HttpOnly"))
-               SetHttpOnly(true);
-            break;
-         case 'M':
-            if (StrCaseEq(Name, "Max-Age"))
-            {
-               if (atoi(Value) > 0)
-               {
-                  /* Max-Age is # seconds from now. So expiration will be <Now> +
-                     Value                                                      */
-                  SetExpires(time(nullptr) + atoi(Value));
-               }
-            }
-            break;
-         case 'P':
-            if (StrCaseEq(Name, "Path"))
-               SetPath(Value);
-            break;
-         case 'S':
-            if (StrCaseEq(Name, "Secure"))
-               SetSecure(true);
-            else if (StrCaseEq(Name, "SameSite"))
-            {
-               SetSameSite(Value);
-               if (StrCaseEq(Value, "None"))
-                  SetSecure(true);
-            }
-            break;
-      }
+      SetName("name");
+      SetValue(foundValue);
    }
 
-   ::Free(Parameters);
-   return IsNameSet;
+   foundValue = findValue(CookieStr, "domain=");
+   if(foundValue != "")
+      SetDomain(foundValue);
+
+   foundValue = findValue(CookieStr, "path=");
+   if(foundValue != "")
+      SetPath(foundValue);
+
+   if(CookieStr.find("HttpOnly") != std::string::npos)
+      SetHttpOnly(true);
+
+   if(CookieStr.find("secure") != std::string::npos)
+      SetSecure(true);
+
+   foundValue = findValue(CookieStr, "SameSite=");
+   if(foundValue != ""){
+      SetSameSite(foundValue);
+      if(foundValue == "None")
+         SetSecure(true);
+   }
+   return true;
 }
 
 /*=****************************************************************************
@@ -810,33 +780,30 @@ bool CookieC::FromString(const char *CookieStr, const char *Domain)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-const char *CookieC::ToString() const
+std::string CookieC::ToString() const
 {
-   if (!mHeaderFormat)
-   {
-      std::ostringstream oss;
+   // TODO: Consider mHeaderFormat
+   // TODO: Return mHeaderFormat
+   // TODO: Add mExpires
+   std::string result = "";
 
-      oss << mName << "=" << mValue;
+   result += mName;
+   result += "=";
+   result += mValue;
 
-      if (mExpires)
-         oss << "; expires=" << mExpires;
+   if(!mDomain.empty())
+      result += ("; domain=" + mDomain);
 
-      if (mDomain)
-         oss << "; domain=" << mDomain;
+   if(!mPath.empty())
+      result += ("; path=" + mPath);
 
-      if (mPath)
-         oss << "; path=" << mPath;
+   if(mHttpOnly)
+      result += ("; httponly");
 
-      if (mSecure)
-         oss << "; secure";
+   if(mSecure)
+      result += ("; secure");
 
-      if (mHttpOnly)
-         oss << "; httponly";
-
-      mHeaderFormat = Strdup(oss.str().c_str());
-   }
-
-   return mHeaderFormat;
+   return result;
 }
 
 
@@ -845,19 +812,20 @@ const char *CookieC::ToString() const
 int main(int argc, char* argv[])
 {
     // Example usage
-    const char* CookieStr = "name=value; domain=example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; secure; httponly";
+    std::string CookieStr = "name=value; domain=example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; secure; httponly";
     CookieC* Cookie = new CookieC();
     if (Cookie)
     {
         Cookie->FromString(CookieStr);
-        printf("Cookie Name: %s\n", Cookie->GetName());
-        printf("Cookie Value: %s\n", Cookie->GetValue());
-        printf("Cookie Domain: %s\n", Cookie->GetDomain());
-        printf("Cookie Path: %s\n", Cookie->GetPath());
-        printf("Cookie Expires: %s\n", Cookie->GetExpires());
-        printf("Cookie Secure: %d\n", Cookie->IsSecure());
-        printf("Cookie HttpOnly: %d\n", Cookie->IsHttpOnly());
-        printf("Cookie SameSite: %s\n", Cookie->GetSameSite() ? Cookie->GetSameSite() : "(NULL)");
+        // TODO: Add expires field
+        std::cout << "Cookie Name: " << Cookie->GetName() << std::endl;
+        std::cout << "Cookie Value: " << Cookie->GetValue() << std::endl;
+        std::cout << "Cookie Domain: " << Cookie->GetDomain() << std::endl;
+        std::cout << "Cookie Path: " << Cookie->GetPath() << std::endl;
+        std::cout << "Cookie Secure: " << Cookie->IsSecure() << std::endl;
+        std::cout << "Cookie HttpOnly: " << Cookie->IsHttpOnly() << std::endl;
+        std::cout << "Cookie SameSite: " << (Cookie->GetSameSite().empty() ? "(NULL)" : Cookie->GetSameSite()) << std::endl;
+
 
         delete Cookie;
     }
@@ -865,9 +833,10 @@ int main(int argc, char* argv[])
     CookieC* Cookie2 = CookieC::Create("name", "value", "example.com", "/", "secure", time(nullptr), "Lax");
     if (Cookie2)
     {
-       printf("%s\n", Cookie2->ToString());
+      std::cout << "Cookie2: " << Cookie2->ToString() << std::endl;
        delete Cookie2;
     }
 
+    std::cout << std::endl;
     return 0;
 }
