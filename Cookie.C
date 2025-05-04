@@ -132,7 +132,7 @@ class CookieC
    std::string GetValue() const;
    std::string GetDomain() const;
    std::string GetPath() const;
-   const char *GetExpires() const;
+   std::string GetExpires() const;
    std::string GetSameSite() const;
    bool        IsSecure() const;
    bool        IsHttpOnly() const;
@@ -158,16 +158,16 @@ class CookieC
    void SetDomain(const std::string& Domain);
    void SetPath(const std::string& Path);
    void SetExpires(time_t Expires);
-   void SetExpires(const char *Expires);
+   void SetExpires(const std::string& Expires);
    void SetSecure(const std::string& Secure);
    void SetSecure(bool Secure);
    void SetHttpOnly(bool HttpOnly);
    void SetSameSite(const std::string& SameSite);
 
-   char         *mExpires;
+   std::string mName, mValue, mDomain, mPath, mExpires;
    mutable char *mHeaderFormat;
-   std::string mDomain, mName, mValue, mPath, mSameSite;
    bool          mSecure, mHttpOnly;
+   std::string mSameSite;
 };
 
 /*=****************************************************************************
@@ -292,7 +292,7 @@ CookieC::CookieC() :
    mValue(""),
    mDomain(""),
    mPath(""),
-   mExpires(nullptr),
+   mExpires(""),
    mHeaderFormat(nullptr),
    mSecure(false),
    mHttpOnly(false),
@@ -349,7 +349,7 @@ void CookieC::Assign(const CookieC &rhs)
    mValue        = rhs.mValue;
    mDomain       = rhs.mDomain;
    mPath         = rhs.mPath;
-   mExpires      = Strdup(rhs.mExpires);
+   mExpires      = rhs.mExpires;
    mHeaderFormat = Strdup(rhs.mHeaderFormat);
    mSecure       = rhs.mSecure;
    mHttpOnly     = rhs.mHttpOnly;
@@ -367,7 +367,6 @@ void CookieC::Assign(const CookieC &rhs)
 /*=***************************************************************************/
 void CookieC::Free()
 {
-   ::Free(mExpires);
    ::Free(mHeaderFormat);
 }
 
@@ -587,11 +586,9 @@ void CookieC::SetExpires(time_t Expires)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-void CookieC::SetExpires(const char *Expires)
+void CookieC::SetExpires(const std::string& Expires)
 {
-   if (mExpires)
-      free(mExpires);
-   mExpires = Strdup(Expires);
+   mExpires = Expires;
 }
 
 /*=****************************************************************************
@@ -603,7 +600,7 @@ void CookieC::SetExpires(const char *Expires)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-const char *CookieC::GetExpires() const
+std::string CookieC::GetExpires() const
 {
    return mExpires;
 }
@@ -680,7 +677,7 @@ bool CookieC::IsHttpOnly() const
 /*=***************************************************************************/
 bool CookieC::IsSessionCookie() const
 {
-   return IsEmptyString(mExpires);
+   return mExpires.empty();
 }
 
 /*=****************************************************************************
@@ -751,18 +748,24 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
    if(foundValue != "")
       SetPath(foundValue);
 
-   if(CookieStr.find("HttpOnly") != std::string::npos)
+   if(CookieStr.find("httponly") != std::string::npos)
       SetHttpOnly(true);
 
    if(CookieStr.find("secure") != std::string::npos)
       SetSecure(true);
 
    foundValue = findValue(CookieStr, "SameSite=");
-   if(foundValue != ""){
+   if(foundValue != "")
+   {
       SetSameSite(foundValue);
       if(foundValue == "None")
          SetSecure(true);
    }
+
+   foundValue = findValue(CookieStr, "expires=");
+   if(foundValue != "")
+      SetExpires(foundValue);
+
    return true;
 }
 
@@ -784,12 +787,14 @@ std::string CookieC::ToString() const
 {
    // TODO: Consider mHeaderFormat
    // TODO: Return mHeaderFormat
-   // TODO: Add mExpires
    std::string result = "";
 
    result += mName;
    result += "=";
    result += mValue;
+
+   if(!mExpires.empty())
+      result += ("; expires=" + mExpires);
 
    if(!mDomain.empty())
       result += ("; domain=" + mDomain);
@@ -817,11 +822,11 @@ int main(int argc, char* argv[])
     if (Cookie)
     {
         Cookie->FromString(CookieStr);
-        // TODO: Add expires field
         std::cout << "Cookie Name: " << Cookie->GetName() << std::endl;
         std::cout << "Cookie Value: " << Cookie->GetValue() << std::endl;
         std::cout << "Cookie Domain: " << Cookie->GetDomain() << std::endl;
         std::cout << "Cookie Path: " << Cookie->GetPath() << std::endl;
+        std::cout << "Cookie Expires: " << Cookie->GetExpires() << std::endl;
         std::cout << "Cookie Secure: " << Cookie->IsSecure() << std::endl;
         std::cout << "Cookie HttpOnly: " << Cookie->IsHttpOnly() << std::endl;
         std::cout << "Cookie SameSite: " << (Cookie->GetSameSite().empty() ? "(NULL)" : Cookie->GetSameSite()) << std::endl;
