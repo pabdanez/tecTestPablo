@@ -139,7 +139,7 @@ class CookieC
    bool        IsSessionCookie() const;
 
    bool        FromString(const std::string& Str = "", const std::string& Domain = "");
-   std::string ToString() const;
+   std::string ToString();
 
  private:
    bool Init(const std::string& Name,
@@ -165,9 +165,10 @@ class CookieC
    void SetSameSite(const std::string& SameSite);
 
    std::string mName, mValue, mDomain, mPath, mExpires;
-   mutable char *mHeaderFormat;
+   std::string mHeaderFormat;
    bool          mSecure, mHttpOnly;
    std::string mSameSite;
+   // Max-Age and Partitioned not included?
 };
 
 /*=****************************************************************************
@@ -293,7 +294,7 @@ CookieC::CookieC() :
    mDomain(""),
    mPath(""),
    mExpires(""),
-   mHeaderFormat(nullptr),
+   mHeaderFormat(""),
    mSecure(false),
    mHttpOnly(false),
    mSameSite("")
@@ -350,7 +351,7 @@ void CookieC::Assign(const CookieC &rhs)
    mDomain       = rhs.mDomain;
    mPath         = rhs.mPath;
    mExpires      = rhs.mExpires;
-   mHeaderFormat = Strdup(rhs.mHeaderFormat);
+   mHeaderFormat = rhs.mHeaderFormat;
    mSecure       = rhs.mSecure;
    mHttpOnly     = rhs.mHttpOnly;
    mSameSite     = rhs.mSameSite;
@@ -367,7 +368,7 @@ void CookieC::Assign(const CookieC &rhs)
 /*=***************************************************************************/
 void CookieC::Free()
 {
-   ::Free(mHeaderFormat);
+   // TODO: Handle this, assure correct object destruction
 }
 
 /*=****************************************************************************
@@ -783,32 +784,33 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-std::string CookieC::ToString() const
+std::string CookieC::ToString() // ToString should always be const, creation of mHeaderFormat here is weird
 {
-   // TODO: Consider mHeaderFormat
-   // TODO: Return mHeaderFormat
-   std::string result = "";
+   if(mHeaderFormat.empty())  // I replicated this behaviour but it seems to be wrong
+   {
+      mHeaderFormat += mName;
+      mHeaderFormat += "=";
+      mHeaderFormat += mValue;
+   
+      if(!mExpires.empty())
+         mHeaderFormat += ("; expires=" + mExpires);
+   
+      if(!mDomain.empty())
+         mHeaderFormat += ("; domain=" + mDomain);
+   
+      if(!mPath.empty())
+         mHeaderFormat += ("; path=" + mPath);
+   
+      if(mHttpOnly)
+         mHeaderFormat += ("; httponly");
+   
+      if(mSecure)
+         mHeaderFormat += ("; secure");
 
-   result += mName;
-   result += "=";
-   result += mValue;
+      // SameSite not included?
+   }
 
-   if(!mExpires.empty())
-      result += ("; expires=" + mExpires);
-
-   if(!mDomain.empty())
-      result += ("; domain=" + mDomain);
-
-   if(!mPath.empty())
-      result += ("; path=" + mPath);
-
-   if(mHttpOnly)
-      result += ("; httponly");
-
-   if(mSecure)
-      result += ("; secure");
-
-   return result;
+   return mHeaderFormat;
 }
 
 
