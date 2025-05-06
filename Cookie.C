@@ -33,6 +33,22 @@
 
 namespace {
 
+std::string HTTPONLY_PREFIX = "#HttpOnly_";
+std::string UNKNOWN_TAG = "unknown";
+std::string PARAMETER_SEPARATOR = ";";
+
+std::string DOMAIN_TAG = "Domain";
+std::string EXPIRES_TAG = "Expires";
+std::string HTTPONLY_TAG = "HttpOnly";
+std::string MAX_AGE_TAG = "Max-Age";
+std::string PATH_TAG = "Path";
+std::string SECURE_TAG = "Secure";
+std::string SAMESITE_TAG = "SameSite";
+
+std::string STRICT_TAG = "Strict";
+std::string LAX_TAG = "Lax";
+std::string NONE_TAG = "None";
+
 void TrimSpaces(std::string& Str) 
 {
    Str.erase(0, Str.find_first_not_of(' '));
@@ -322,15 +338,13 @@ const std::string& CookieC::GetValue() const
 /*=***************************************************************************/
 void CookieC::SetDomain(const std::string& Domain)
 {
-   size_t posSubStr = Domain.find("#HttpOnly_");   // TODO: This is wrong, assumes that the subStr can be in the middle of the string
-   if(posSubStr == std::string::npos)
-   {
-      mDomain = Domain;
+   if (Domain.starts_with(HTTPONLY_PREFIX)){
+      mDomain = Domain.substr(10);
+      mHttpOnly = true;
    }
    else
    {
-      mDomain = Domain.substr(posSubStr + 10); // 10 = len of "#HttpOnly_" // TODO: Set constant?
-      mHttpOnly = true;
+      mDomain = Domain;
    }
 }
 
@@ -359,7 +373,7 @@ const std::string& CookieC::GetDomain() const
 /*=***************************************************************************/
 void CookieC::SetPath(const std::string& Path)
 {
-   if (Path != "unknown") // TODO: Use constant
+   if (Path != UNKNOWN_TAG)
       mPath = Path;
    else
    mPath.clear(); // If the cookie uses FromString and the new value is unknown, the content would be outdated.
@@ -457,7 +471,7 @@ const std::string& CookieC::GetExpires() const
 /*=***************************************************************************/
 void CookieC::SetSecure(const std::string& Secure)
 {
-   mSecure = StrCaseEq(Secure, "Secure"); // TODO: Add constant
+   mSecure = StrCaseEq(Secure, "Secure");
 }
 
 void CookieC::SetSecure(bool Secure)
@@ -575,7 +589,7 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
    if (!Domain.empty())
       SetDomain(Domain);
 
-   while(NextParameter(CookieStr, ";", idx, Parameter))
+   while(NextParameter(CookieStr, PARAMETER_SEPARATOR, idx, Parameter))
    {
       SplitNameValue(Parameter, Name, Value);
 
@@ -593,19 +607,19 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
       switch (std::toupper(static_cast<unsigned char>(Name.front())))
       {
          case 'D':
-            if (StrCaseEq(Name, "Domain"))
+            if (StrCaseEq(Name, DOMAIN_TAG))
                SetDomain(Value);
             break;
          case 'E':
-            if (StrCaseEq(Name, "Expires"))
+            if (StrCaseEq(Name, EXPIRES_TAG))
                SetExpires(Value);
             break;
          case 'H':
-            if (StrCaseEq(Name, "HttpOnly"))
+            if (StrCaseEq(Name, HTTPONLY_TAG))
                SetHttpOnly(true);
             break;
          case 'M':
-            if (StrCaseEq(Name, "Max-Age"))
+            if (StrCaseEq(Name, MAX_AGE_TAG))
             {
                if (stoi(Value) > 0)
                {
@@ -616,16 +630,16 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
             }
             break;
          case 'P':
-            if (StrCaseEq(Name, "Path"))
+            if (StrCaseEq(Name, PATH_TAG))
                SetPath(Value);
             break;
          case 'S':
-            if (StrCaseEq(Name, "Secure"))
+            if (StrCaseEq(Name, SECURE_TAG))
                SetSecure(true);
-            else if (StrCaseEq(Name, "SameSite"))
+            else if (StrCaseEq(Name, SAMESITE_TAG))
             {
                SetSameSite(Value);
-               if (StrCaseEq(Value, "None"))
+               if (StrCaseEq(Value, NONE_TAG))
                   SetSecure(true);
             }
             break;
@@ -657,22 +671,24 @@ const std::string& CookieC::ToString() const
       oss << mName << "=" << mValue;
 
       if (!mExpires.empty())
-         oss << "; Expires=" << mExpires;
+         oss << "; " << EXPIRES_TAG << "=" << mExpires;
 
       if (!mDomain.empty())
-         oss << "; Domain=" << mDomain;
+         oss << "; " << DOMAIN_TAG<< "=" << mDomain;
 
       if (!mPath.empty())
-         oss << "; Path=" << mPath;
+         oss << "; " << PATH_TAG << "=" << mPath;
 
       if (!mSameSite.empty())
-         oss << "; SameSite=" << mSameSite;
+         oss << "; " << SAMESITE_TAG << "=" << mSameSite;
 
       if (mSecure)
-         oss << "; Secure";
+         oss << "; " << SECURE_TAG;
 
       if (mHttpOnly)
-         oss << "; HttpOnly";
+         oss << "; " << HTTPONLY_TAG;
+
+      // Partitioned?
 
       mHeaderFormat = oss.str();
    }
@@ -686,7 +702,7 @@ const std::string& CookieC::ToString() const
 int main(int argc, char* argv[])
 {
     // Example usage
-    std::string CookieStr = "name=value; domain=example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; secure; httponly";
+    std::string CookieStr = "name=value; domain=#HttpOnly_example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; secure";
     CookieC* Cookie = new CookieC();
     if (Cookie)
     {
