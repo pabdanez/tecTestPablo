@@ -39,12 +39,12 @@ char *TrimSpaces(char *Str)
 }
 
 //this function doesn't handle UTF-8, but it works okay for the purposes of this example code
-bool StrCaseEq(const char *Str1, const char *Str2)
+bool StrCaseEq(const std::string& Str1, const std::string& Str2)
 {
 #ifdef _WIN32
-   return (_stricmp(Str1, Str2) == 0);
+   return (_stricmp(Str1.c_str(), Str2.c_str()) == 0);
 #else
-   return (strcasecmp(Str1, Str2) == 0);
+   return (strcasecmp(Str1.c_str(), Str2.c_str()) == 0);
 #endif
 }
 
@@ -435,7 +435,7 @@ const std::string& CookieC::GetExpires() const
 /*=***************************************************************************/
 void CookieC::SetSecure(const std::string& Secure)
 {
-   mSecure = (Secure == "TRUE"); // TODO: Solve original bug, should be "secure"
+   mSecure = StrCaseEq(Secure, "Secure"); // TODO: Add constant
 }
 
 void CookieC::SetSecure(bool Secure)
