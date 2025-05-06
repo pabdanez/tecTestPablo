@@ -31,33 +31,7 @@
 #include <cassert>
 #include <iostream>
 
-static void Free(void *ptr)
-{
-   if (ptr)
-      free(ptr);
-}
-
-static char *Strdup(const char *OldString)
-{
-   char          *Ptr;
-
-   if (!OldString)
-      return nullptr;
-
-   Ptr = (char *) malloc(strlen(OldString) + 1);
-   if (!Ptr)
-      return nullptr;
-
-   strcpy(Ptr, OldString);
-   return Ptr;
-}
-
-bool IsEmptyString(const char *Str)
-{
-   return (!Str || *Str == '\0');
-}
-
-char *TrimSpaces(char *Str)
+char *TrimSpaces(char *Str) 
 {
    while (*Str == ' ')
       Str++;
@@ -151,7 +125,6 @@ class CookieC
              const std::string& SameSite);
 
    void Assign(const CookieC &rhs);
-   void Free();
 
    void SetName(const std::string& Name);
    void SetValue(const std::string& Value);
@@ -170,75 +143,6 @@ class CookieC
    std::string mSameSite;
    // Max-Age and Partitioned not included?
 };
-
-/*=****************************************************************************
-**
-** int SplitStringIntoItems(const char *Str, char ***ItemListPtr, const char
-**    *SepStr)
-**
-** DESCRIPTION : split <SepStr> separated string into items
-**    
-**    Returned itemlist and each item  must be Free(F)'d by caller,
-**    use FreeArgCV(F)
-**
-** RETURN VALUE: no of items, items returned in ItemListPtr
-**    REMEMBER TO Free(F) or FreeArgCV(F)
-**                                                                           */
-/*=***************************************************************************/
-int SplitStringIntoItems(const char *Str, char ***ItemListPtr, const char *SepStr)
-{
-   char **ItemList = NULL;
-   char  *TmpStr;
-   char  *ItemPtr;
-   int    NoOfItems;
-   int    MaxNoOfItems;
-   char  *Nxt;
-
-   NoOfItems = 0;
-
-   if (!IsEmptyString(Str))
-   {
-      TmpStr = Strdup(Str);
-      if (TmpStr)
-      {
-         MaxNoOfItems = 20;
-         ItemList     = (char **) malloc(MaxNoOfItems * sizeof(char *));
-         if (!ItemList)
-         {
-            *ItemListPtr = NULL;
-            Free(TmpStr);
-            return -1;
-         }
-
-         ItemPtr = strtok_r(TmpStr, SepStr, &Nxt);
-         while (ItemPtr != NULL)
-         {
-            if (NoOfItems == MaxNoOfItems)
-            {
-               ItemList = (char **) realloc(ItemList, (MaxNoOfItems + 20) * sizeof(char *));
-               if (!ItemList)
-               {
-                  *ItemListPtr = NULL;
-                  Free(TmpStr);
-                  return -1;
-               }
-               MaxNoOfItems += 20;
-            }
-
-            ItemList[NoOfItems] = Strdup(ItemPtr);
-            NoOfItems++;
-
-            ItemPtr = strtok_r(NULL, SepStr, &Nxt);
-         }
-
-         Free(TmpStr);
-      }
-   }
-
-   *ItemListPtr = ItemList;
-
-   return NoOfItems;
-}
 
 /*=****************************************************************************
 **
@@ -289,15 +193,15 @@ CookieC *CookieC::Create(const std::string& Name,
 **                                                                           */
 /*=***************************************************************************/
 CookieC::CookieC() :
-   mName(""),
-   mValue(""),
-   mDomain(""),
-   mPath(""),
-   mExpires(""),
-   mHeaderFormat(""),
-   mSecure(false),
-   mHttpOnly(false),
-   mSameSite("")
+   mName(),
+   mValue(),
+   mDomain(),
+   mPath(),
+   mExpires(),
+   mHeaderFormat(),
+   mSecure(),
+   mHttpOnly(),
+   mSameSite()
 {
 }
 
@@ -359,20 +263,6 @@ void CookieC::Assign(const CookieC &rhs)
 
 /*=****************************************************************************
 **
-** void CookieC::Free()
-**
-** DESCRIPTION :
-**
-** RETURN VALUE:
-**                                                                           */
-/*=***************************************************************************/
-void CookieC::Free()
-{
-   // TODO: Handle this, assure correct object destruction
-}
-
-/*=****************************************************************************
-**
 ** CookieC::CookieC(const CookieC &rhs)
 **
 ** DESCRIPTION : Copy Constructor
@@ -398,7 +288,6 @@ CookieC &CookieC::operator=(const CookieC &rhs)
 {
    if (this != &rhs)
    {
-      Free();
       Assign(rhs);
    }
    return *this;
@@ -415,7 +304,6 @@ CookieC &CookieC::operator=(const CookieC &rhs)
 /*=***************************************************************************/
 CookieC::~CookieC()
 {
-   Free();
 }
 
 /*=****************************************************************************
@@ -493,6 +381,7 @@ void CookieC::SetDomain(const std::string& Domain)
    else
    {
       mDomain = Domain.substr(posSubStr + 10); // 10 = len of "#HttpOnly_"
+      mHttpOnly = true;
    }
 }
 
@@ -574,7 +463,7 @@ void CookieC::SetExpires(time_t Expires)
       memcpy(TmpExpires, DAYS[Tm.tm_wday], 3);
       memcpy(TmpExpires + 3 + 1 + 1 + 2 + 1, MONS[Tm.tm_mon], 3);
 
-      mExpires = Strdup(TmpExpires);
+      mExpires = TmpExpires;
    }
 }
 
@@ -728,7 +617,6 @@ std::string CookieC::GetSameSite() const
 /*=***************************************************************************/
 bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain)
 {
-   // TODO: Replicate IsNameSet
    // TODO: Improve search process to handle uppercases, quotes, and whitespaces
    // TODO: Replicate mechanism to detect name and value
    if (!Domain.empty())
@@ -740,6 +628,8 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
       SetName("name");
       SetValue(foundValue);
    }
+   else
+      return false;
 
    foundValue = findValue(CookieStr, "domain=");
    if(foundValue != "")
