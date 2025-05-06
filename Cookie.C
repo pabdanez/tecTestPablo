@@ -98,22 +98,19 @@ class CookieC
                           const std::string& SameSite= "");
 
    CookieC();
-   CookieC(const CookieC &);
-   CookieC &operator=(const CookieC &);
-   ~CookieC();
 
-   std::string GetName() const;
-   std::string GetValue() const;
-   std::string GetDomain() const;
-   std::string GetPath() const;
-   std::string GetExpires() const;
-   std::string GetSameSite() const;
+   const std::string& GetName() const;
+   const std::string& GetValue() const;
+   const std::string& GetDomain() const;
+   const std::string& GetPath() const;
+   const std::string& GetExpires() const;
+   const std::string& GetSameSite() const;
    bool        IsSecure() const;
    bool        IsHttpOnly() const;
    bool        IsSessionCookie() const;
 
-   bool        FromString(const std::string& Str = "", const std::string& Domain = "");
-   std::string ToString();
+   bool        FromString(const std::string& Str, const std::string& Domain = "");
+   const std::string& ToString() const;
 
  private:
    bool Init(const std::string& Name,
@@ -138,7 +135,7 @@ class CookieC
    void SetSameSite(const std::string& SameSite);
 
    std::string mName, mValue, mDomain, mPath, mExpires;
-   std::string mHeaderFormat;
+   mutable std::string mHeaderFormat;
    bool          mSecure, mHttpOnly;
    std::string mSameSite;
    // Max-Age and Partitioned not included?
@@ -263,51 +260,6 @@ void CookieC::Assign(const CookieC &rhs)
 
 /*=****************************************************************************
 **
-** CookieC::CookieC(const CookieC &rhs)
-**
-** DESCRIPTION : Copy Constructor
-**
-** RETURN VALUE:
-**                                                                           */
-/*=***************************************************************************/
-CookieC::CookieC(const CookieC &rhs)
-{
-   Assign(rhs);
-}
-
-/*=****************************************************************************
-**
-** CookieC &CookieC::operator=(const CookieC &rhs)
-**
-** DESCRIPTION : Assignment operator
-**
-** RETURN VALUE:
-**                                                                           */
-/*=***************************************************************************/
-CookieC &CookieC::operator=(const CookieC &rhs)
-{
-   if (this != &rhs)
-   {
-      Assign(rhs);
-   }
-   return *this;
-}
-
-/*=****************************************************************************
-**
-** CookieC::~CookieC()
-**
-** DESCRIPTION : Destructor
-**
-** RETURN VALUE:
-**                                                                           */
-/*=***************************************************************************/
-CookieC::~CookieC()
-{
-}
-
-/*=****************************************************************************
-**
 ** void CookieC::SetName(const char *Name)
 **
 ** DESCRIPTION :
@@ -329,7 +281,7 @@ void CookieC::SetName(const std::string& Name)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-std::string CookieC::GetName() const
+const std::string& CookieC::GetName() const
 {
    return mName;
 }
@@ -357,7 +309,7 @@ void CookieC::SetValue(const std::string&  Value)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-std::string CookieC::GetValue() const
+const std::string& CookieC::GetValue() const
 {
    return mValue;
 }
@@ -394,7 +346,7 @@ void CookieC::SetDomain(const std::string& Domain)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-std::string CookieC::GetDomain() const
+const std::string& CookieC::GetDomain() const
 {
    return mDomain;
 }
@@ -423,7 +375,7 @@ void CookieC::SetPath(const std::string& Path)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-std::string CookieC::GetPath() const
+const std::string& CookieC::GetPath() const
 {
    return mPath;
 }
@@ -490,7 +442,7 @@ void CookieC::SetExpires(const std::string& Expires)
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-std::string CookieC::GetExpires() const
+const std::string& CookieC::GetExpires() const
 {
    return mExpires;
 }
@@ -595,7 +547,7 @@ void CookieC::SetSameSite(const std::string& SameSite)
 ** RETURN VALUE: One of the values "Strict", "Lax", or "None"
 **                                                                           */
 /*=***************************************************************************/
-std::string CookieC::GetSameSite() const
+const std::string& CookieC::GetSameSite() const
 {
    return mSameSite;
 }
@@ -674,9 +626,9 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
 ** RETURN VALUE:
 **                                                                           */
 /*=***************************************************************************/
-std::string CookieC::ToString() // ToString should always be const, creation of mHeaderFormat here is weird
+const std::string& CookieC::ToString() const
 {
-   if(mHeaderFormat.empty())  // I replicated this behaviour but it seems to be wrong
+   if(mHeaderFormat.empty())
    {
       mHeaderFormat += mName;
       mHeaderFormat += "=";
