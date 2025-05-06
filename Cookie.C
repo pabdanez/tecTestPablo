@@ -31,11 +31,19 @@
 #include <cassert>
 #include <iostream>
 
-char *TrimSpaces(char *Str) 
+namespace {
+
+void TrimSpaces(std::string& Str) 
 {
-   while (*Str == ' ')
-      Str++;
-   return Str;
+   Str.erase(0, Str.find_first_not_of(' '));
+}
+
+void TrimQuotes(std::string& Str)
+{
+   if ((Str.length() > 1) && Str.front() == '"' && Str.back() == '"'){
+      Str.pop_back();
+      Str.erase(0);
+   }
 }
 
 //this function doesn't handle UTF-8, but it works okay for the purposes of this example code
@@ -61,30 +69,44 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res)
 }
 #endif
 
-/*=****************************************************************************
-**
-** std::string findValue
-**
-** DESCRIPTION : Look for the specified field in a string and gets its value
-**
-** RETURN VALUE: String containing the value for that field
-**                                                                           */
-/*=***************************************************************************/
-std::string findValue(const std::string& str, const std::string& field)
+// TODO: Add description
+bool NextParameter(const std::string& Str, const std::string& Separator, size_t& Idx, std::string& Parameter)
 {
-   // TODO: IMPROVE SEARCH -> UPPERCASES? QUOTES? WHITE SPACES?
-   std::string foundValue = "";
-   size_t posDomain = str.find(field);
-   if(posDomain != std::string::npos)
+   if (Idx >= Str.length())
+      return false;
+
+   size_t PosSeparator = Str.find(Separator, Idx);
+   Parameter = Str.substr(Idx, PosSeparator - Idx);
+   Idx = PosSeparator;
+   if (Idx != std::string::npos)
    {
-      size_t posStartDomain = posDomain + field.size();
-      size_t posEndDomain = str.find(";", posDomain);
-      size_t lenDomain = posEndDomain - posStartDomain;
-      foundValue = str.substr(posStartDomain, lenDomain);
+      Idx++;
    }
 
-   return foundValue;
+   return true;
 }
+
+// TODO: Add description
+void SplitNameValue(const std::string& Parameter, std::string& Name, std::string& Value)
+{
+   size_t EqPos= Parameter.find("=");
+   Name = Parameter.substr(0, EqPos);
+
+   if (EqPos == std::string::npos) // Equal not found
+   {
+      Value.clear();
+   }
+   else
+   {
+      Value = Parameter.substr(EqPos + 1);
+   }
+
+   TrimSpaces(Name);
+   TrimQuotes(Name); 
+}
+
+
+}  // Anonymous namespace
 
 class CookieC
 {
@@ -546,52 +568,70 @@ const std::string& CookieC::GetSameSite() const
 /*=***************************************************************************/
 bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain)
 {
-   // TODO: Improve search process to handle uppercases, quotes, and whitespaces
-   // TODO: Replicate mechanism to detect name and value
-   
-   // TODO: Consider Partitioned? Max-age?
-   
+   bool        IsNameSet  = false;
+   std::string Parameter, Name, Value;
+   size_t         idx = 0;
+
    if (!Domain.empty())
       SetDomain(Domain);
 
-   std::string foundValue = findValue(CookieStr, "name="); 
-   if(foundValue != "")
+   while(NextParameter(CookieStr, ";", idx, Parameter))
    {
-      SetName("name");
-      SetValue(foundValue);
+      SplitNameValue(Parameter, Name, Value);
+
+      if (Name.empty())
+         continue;
+
+      if (!IsNameSet)
+      {
+         SetName(Name);
+         SetValue(Value);
+         IsNameSet = true;
+         continue;
+      }
+
+      switch (std::toupper(static_cast<unsigned char>(Name.front())))
+      {
+         case 'D':
+            if (StrCaseEq(Name, "Domain"))
+               SetDomain(Value);
+            break;
+         case 'E':
+            if (StrCaseEq(Name, "Expires"))
+               SetExpires(Value);
+            break;
+         case 'H':
+            if (StrCaseEq(Name, "HttpOnly"))
+               SetHttpOnly(true);
+            break;
+         case 'M':
+            if (StrCaseEq(Name, "Max-Age"))
+            {
+               if (stoi(Value) > 0)
+               {
+                  /* Max-Age is # seconds from now. So expiration will be <Now> +
+                     Value                                                      */
+                  SetExpires(time(nullptr) + stoi(Value));
+               }
+            }
+            break;
+         case 'P':
+            if (StrCaseEq(Name, "Path"))
+               SetPath(Value);
+            break;
+         case 'S':
+            if (StrCaseEq(Name, "Secure"))
+               SetSecure(true);
+            else if (StrCaseEq(Name, "SameSite"))
+            {
+               SetSameSite(Value);
+               if (StrCaseEq(Value, "None"))
+                  SetSecure(true);
+            }
+            break;
+      }
    }
-   else
-      return false;
-
-   foundValue = findValue(CookieStr, "domain=");
-   if(foundValue != "")
-      SetDomain(foundValue);
-
-   foundValue = findValue(CookieStr, "path=");
-   if(foundValue != "")
-      SetPath(foundValue);
-
-   if(CookieStr.find("httponly") != std::string::npos)
-      SetHttpOnly(true);
-
-   if(CookieStr.find("secure") != std::string::npos)
-      SetSecure(true);
-
-   foundValue = findValue(CookieStr, "SameSite=");
-   if(foundValue != "")
-   {
-      SetSameSite(foundValue);
-      if(foundValue == "None")
-         SetSecure(true);
-   }
-
-   foundValue = findValue(CookieStr, "expires=");
-   if(foundValue != "")
-      SetExpires(foundValue);
-
-   mHeaderFormat.clear(); // In order to be reseted if FromString is used again anytime
-
-   return true;
+   return IsNameSet;
 }
 
 /*=****************************************************************************
