@@ -610,28 +610,31 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
 /*=***************************************************************************/
 const std::string& CookieC::ToString() const
 {
-   if(mHeaderFormat.empty()) 
+   if (mHeaderFormat.empty())
    {
-      mHeaderFormat += mName;
-      mHeaderFormat += "=";
-      mHeaderFormat += mValue;
-   
-      if(!mExpires.empty())
-         mHeaderFormat += ("; expires=" + mExpires);  // Roll back to ostringstream?
-   
-      if(!mDomain.empty())
-         mHeaderFormat += ("; domain=" + mDomain);
-   
-      if(!mPath.empty())
-         mHeaderFormat += ("; path=" + mPath);
-   
-      if(mHttpOnly)
-         mHeaderFormat += ("; httponly");
-   
-      if(mSecure)
-         mHeaderFormat += ("; secure");
+      std::ostringstream oss;
 
-      // SameSite not included? Partitioned? Max Age?
+      oss << mName << "=" << mValue;
+
+      if (!mExpires.empty())
+         oss << "; Expires=" << mExpires;
+
+      if (!mDomain.empty())
+         oss << "; Domain=" << mDomain;
+
+      if (!mPath.empty())
+         oss << "; Path=" << mPath;
+
+      if (!mSameSite.empty())
+         oss << "; SameSite=" << mSameSite;
+
+      if (mSecure)
+         oss << "; Secure";
+
+      if (mHttpOnly)
+         oss << "; HttpOnly";
+
+      mHeaderFormat = oss.str();
    }
 
    return mHeaderFormat;
