@@ -146,7 +146,8 @@ void SplitNameValue(const std::string& Parameter, std::string& Name, std::string
 
 }  // Anonymous namespace
 
-class CookieC
+
+class CookieC                       // Could be splitted in .hpp and .cpp
 {
  public:
    static CookieC *Create(const std::string& Name,
@@ -664,6 +665,7 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
    if (!Domain.empty())
       SetDomain(Domain);
 
+   // As ostringstream is used, we may use istringstream here
    while(NextParameter(CookieStr, PARAMETER_SEPARATOR, idx, Parameter))
    {
       SplitNameValue(Parameter, Name, Value);
