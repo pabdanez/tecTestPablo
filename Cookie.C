@@ -50,7 +50,7 @@ std::string STRICT_TAG = "Strict";
 std::string LAX_TAG = "Lax";
 std::string NONE_TAG = "None";
 
-void TrimSpaces(std::string& Str) 
+void TrimSpaces(std::string& Str)
 {
    Str.erase(0, Str.find_first_not_of(' '));
 }
@@ -71,7 +71,7 @@ bool StrCaseEq(const std::string& Str1, const std::string& Str2)
    return ((Str1.length() == Str2.length())
            && _stricmp(Str1.c_str(), Str2.c_str()) == 0);
 #else
-   return ((Str1.length() == Str2.length())
+   return ((Str1.length() == Str2.length())        // Assume difference in a single operation, efficient
            && strcasecmp(Str1.c_str(), Str2.c_str()) == 0);
 #endif
 }
@@ -137,11 +137,11 @@ void SplitNameValue(const std::string& Parameter, std::string& Name, std::string
    else
    {
       Value = Parameter.substr(EqPos + 1);
-      TrimQuotes(Name);             // Value field may have quotes
+      TrimQuotes(Value);             // Value field may have quotes
    }
 
    TrimSpaces(Name);
-   TrimQuotes(Name); 
+   TrimQuotes(Name);                // According to documentation, Name cannot have quotes
 }
 
 }  // Anonymous namespace
@@ -160,7 +160,7 @@ class CookieC
 
    CookieC();
 
-   const std::string& GetName() const;
+   const std::string& GetName() const;    // They could be inline
    const std::string& GetValue() const;
    const std::string& GetDomain() const;
    const std::string& GetPath() const;
@@ -171,7 +171,7 @@ class CookieC
    bool        IsHttpOnly() const;
    bool        IsSessionCookie() const;
 
-   bool        FromString(const std::string& Str, const std::string& Domain = "");
+   bool        FromString(const std::string& Str, const std::string& Domain = "");  // Is it supposed to be possible to recall this method?
    const std::string& ToString() const;
 
  private:
@@ -216,7 +216,7 @@ class CookieC
 **    const std::string& SameSite)
 **
 ** DESCRIPTION: This class holds a cURL cookie.
-**    
+**
 **    Cookies are obtained by the cURL call                                   \
 **    curl_easy_getinfo(CURLINFO_COOKIELIST)
 **                                                                           */
@@ -234,7 +234,7 @@ CookieC *CookieC::Create(const std::string& Name,
 
    if (C)
    {
-      if (!C->Init(Name, Value, Domain, Path, Secure, Partitioned, Expires, SameSite))
+      if (!C->Init(Name, Value, Domain, Path, Secure, Partitioned, Expires, SameSite)) // Never happens as Init always returns true
       {
          delete (C);
          return NULL;
@@ -508,7 +508,7 @@ void CookieC::SetSecure(const std::string& Secure)
    // there may be a case where Partitioned is true and Secure is false
    // That is wrong according to the documentation.
    // Impossible scenario in current code, but relevant for future developments.
-   mSecure = StrCaseEq(Secure, SECURE_TAG);
+   mSecure = StrCaseEq(Secure, SECURE_TAG);     // Originally checking TRUE -> bug?
 }
 
 void CookieC::SetSecure(bool Secure)
@@ -577,7 +577,7 @@ void CookieC::SetPartitioned(bool Partitioned)
 {
    mPartitioned = Partitioned;
    SetSecure(true);              // Partitioned always implies Secure
-} 
+}
 
 /*=****************************************************************************
 **
@@ -620,7 +620,9 @@ bool CookieC::IsSessionCookie() const
 /*=***************************************************************************/
 void CookieC::SetSameSite(const std::string& SameSite)
 {
-   mSameSite = SameSite;   // Maybe good idea to check if the result is one of the expected "Strict", "Lax", or "None"
+   // Maybe good idea to check if the result is one of the expected "Strict", "Lax", or "None"
+   // As the description of the method specifies what values is it geting, it is "safe" not to check.
+   mSameSite = SameSite;
 }
 
 /*=****************************************************************************
@@ -644,7 +646,7 @@ const std::string& CookieC::GetSameSite() const
 ** DESCRIPTION : Parse header formatted string into cookie values (as         \
 **    described                                                               \
 **    https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie)
-**    
+**
 **    <name>=<value>[; <name>=<value>]...
 **    [; expires=<date>][; domain=<domain_name>]
 **    [; path=<some_path>][; secure][; httponly]
@@ -677,7 +679,7 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
          continue;
       }
 
-      switch (std::toupper(static_cast<unsigned char>(Name.front())))
+      switch (std::toupper(static_cast<unsigned char>(Name.front()))) // Necessary cast according to cppreference
       {
          case 'D':
             if (StrCaseEq(Name, DOMAIN_TAG))
@@ -701,7 +703,6 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
                   ValueMaxAge = 0;
                /* Max-Age is # seconds from now. So expiration will be <Now> + Value */
                SetExpires(time(nullptr) + stoi(Value));
-               
             }
             break;
          case 'P':
@@ -785,7 +786,7 @@ const std::string& CookieC::ToString() const
 int main(int argc, char* argv[])
 {
     // Example usage
-    std::string CookieStr = "name=\"value\"; domain=#HttpOnly_example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; Partitioned";
+    std::string CookieStr = "name=value; domain=#HttpOnly_example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; Partitioned";
     CookieC* Cookie = new CookieC();
     if (Cookie)
     {
