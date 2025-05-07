@@ -56,7 +56,8 @@ void TrimSpaces(std::string& Str)
 
 void TrimQuotes(std::string& Str)
 {
-   if ((Str.length() > 1) && Str.front() == '"' && Str.back() == '"'){
+   if ((Str.length() > 1) && Str.front() == '"' && Str.back() == '"')
+   {
       Str.pop_back();
       Str.erase(0);
    }
@@ -85,7 +86,16 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res)
 }
 #endif
 
-// TODO: Add description
+/*=****************************************************************************
+**
+** bool NextParameter(const std::string& Str, const std::string& Separator,
+**      size_t& Idx, std::string& Parameter)
+**
+** DESCRIPTION : Look for the next parameter in Str, starting at Idx
+**
+** RETURN VALUE: True if a parameter was found, otherwise false
+**                                                                           */
+/*=***************************************************************************/
 bool NextParameter(const std::string& Str, const std::string& Separator, size_t& Idx, std::string& Parameter)
 {
    if (Idx >= Str.length())
@@ -102,7 +112,16 @@ bool NextParameter(const std::string& Str, const std::string& Separator, size_t&
    return true;
 }
 
-// TODO: Add description
+/*=****************************************************************************
+**
+** void SplitNameValue(const std::string& Parameter, std::string& Name,
+      std::string& Value)
+**
+** DESCRIPTION : Split the incoming parameter into name and value
+**
+** RETURN VALUE:
+**                                                                           */
+/*=***************************************************************************/
 void SplitNameValue(const std::string& Parameter, std::string& Name, std::string& Value)
 {
    size_t EqPos= Parameter.find("=");
@@ -338,7 +357,8 @@ const std::string& CookieC::GetValue() const
 /*=***************************************************************************/
 void CookieC::SetDomain(const std::string& Domain)
 {
-   if (Domain.starts_with(HTTPONLY_PREFIX)){
+   if (Domain.starts_with(HTTPONLY_PREFIX))
+   {
       mDomain = Domain.substr(10);
       mHttpOnly = true;
    }
@@ -471,7 +491,7 @@ const std::string& CookieC::GetExpires() const
 /*=***************************************************************************/
 void CookieC::SetSecure(const std::string& Secure)
 {
-   mSecure = StrCaseEq(Secure, "Secure");
+   mSecure = StrCaseEq(Secure, SECURE_TAG);
 }
 
 void CookieC::SetSecure(bool Secure)
@@ -583,6 +603,7 @@ const std::string& CookieC::GetSameSite() const
 bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain)
 {
    bool        IsNameSet  = false;
+   bool        MaxAgeSet  = false;
    std::string Parameter, Name, Value;
    size_t         idx = 0;
 
@@ -612,7 +633,8 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
             break;
          case 'E':
             if (StrCaseEq(Name, EXPIRES_TAG))
-               SetExpires(Value);
+               if (!MaxAgeSet)
+                  SetExpires(Value);
             break;
          case 'H':
             if (StrCaseEq(Name, HTTPONLY_TAG))
@@ -621,12 +643,13 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
          case 'M':
             if (StrCaseEq(Name, MAX_AGE_TAG))
             {
-               if (stoi(Value) > 0)
-               {
-                  /* Max-Age is # seconds from now. So expiration will be <Now> +
-                     Value                                                      */
-                  SetExpires(time(nullptr) + stoi(Value));
-               }
+               MaxAgeSet = true;
+               int ValueMaxAge = stoi(Value);
+               if (ValueMaxAge < 0)
+                  ValueMaxAge = 0;
+               /* Max-Age is # seconds from now. So expiration will be <Now> + Value */
+               SetExpires(time(nullptr) + stoi(Value));
+               
             }
             break;
          case 'P':
@@ -645,6 +668,9 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
             break;
       }
    }
+
+   mHeaderFormat.clear();     // If FromString is called again, reset mHeaderFormat
+
    return IsNameSet;
 }
 
