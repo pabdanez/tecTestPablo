@@ -43,6 +43,7 @@ std::string HTTPONLY_TAG = "HttpOnly";
 std::string MAX_AGE_TAG = "Max-Age";
 std::string PATH_TAG = "Path";
 std::string SECURE_TAG = "Secure";
+std::string PARTITIONED_TAG = "Partitioned";
 std::string SAMESITE_TAG = "SameSite";
 
 std::string STRICT_TAG = "Strict";
@@ -151,6 +152,7 @@ class CookieC
                           const std::string& Domain,
                           const std::string& Path,
                           const std::string& Secure,
+                          const std::string& Partitioned,
                           time_t      Expires,
                           const std::string& SameSite= "");
 
@@ -162,6 +164,7 @@ class CookieC
    const std::string& GetPath() const;
    const std::string& GetExpires() const;
    const std::string& GetSameSite() const;
+   bool        IsStoredInPartitiondStorage() const;
    bool        IsSecure() const;
    bool        IsHttpOnly() const;
    bool        IsSessionCookie() const;
@@ -175,6 +178,7 @@ class CookieC
              const std::string& Domain,
              const std::string& Path,
              const std::string& Secure,
+             const std::string& Partitioned,
              time_t      Expires,
              const std::string& SameSite);
 
@@ -186,14 +190,16 @@ class CookieC
    void SetExpires(const std::string& Expires);
    void SetSecure(const std::string& Secure);
    void SetSecure(bool Secure);
+   void SetPartitioned(const std::string& Partitioned);
+   void SetPartitioned(bool Partitioned);
    void SetHttpOnly(bool HttpOnly);
    void SetSameSite(const std::string& SameSite);
 
    std::string mName, mValue, mDomain, mPath, mExpires;
    mutable std::string mHeaderFormat;
-   bool          mSecure, mHttpOnly;
+   bool          mSecure, mHttpOnly, mPartitioned;
    std::string mSameSite;
-   // Max-Age and Partitioned not included?
+   // Max-Age not included as it is handled with Expires field
 };
 
 /*=****************************************************************************
@@ -203,6 +209,7 @@ class CookieC
 **    const std::string& Domain,
 **    const std::string& Path,
 **    const std::string& Secure,
+**    const std::string& Partitioned,
 **    time_t Expires,
 **    const std::string& SameSite)
 **
@@ -217,6 +224,7 @@ CookieC *CookieC::Create(const std::string& Name,
                          const std::string& Domain,
                          const std::string& Path,
                          const std::string& Secure,
+                         const std::string& Partitioned,
                          time_t      Expires,
                          const std::string& SameSite)
 {
@@ -224,7 +232,7 @@ CookieC *CookieC::Create(const std::string& Name,
 
    if (C)
    {
-      if (!C->Init(Name, Value, Domain, Path, Secure, Expires, SameSite))
+      if (!C->Init(Name, Value, Domain, Path, Secure, Partitioned, Expires, SameSite))
       {
          delete (C);
          return NULL;
@@ -252,6 +260,7 @@ CookieC::CookieC() :
    mHeaderFormat(),
    mSecure(),
    mHttpOnly(),
+   mPartitioned(),
    mSameSite()
 {
 }
@@ -276,6 +285,7 @@ bool CookieC::Init(const std::string& Name,
                    const std::string& Domain,
                    const std::string& Path,
                    const std::string& Secure,
+                   const std::string& Partitioned,
                    time_t      Expires,
                    const std::string& SameSite)
 {
@@ -285,6 +295,7 @@ bool CookieC::Init(const std::string& Name,
    SetPath(Path);
    SetExpires(Expires);
    SetSecure(Secure);
+   SetPartitioned(Partitioned);
    SetSameSite(SameSite);
 
    return true;
@@ -543,6 +554,41 @@ bool CookieC::IsHttpOnly() const
 
 /*=****************************************************************************
 **
+** void CookieC::SetPartitioned(const std::string& Partitioned)
+**
+** DESCRIPTION :
+**
+** RETURN VALUE:
+**                                                                           */
+/*=***************************************************************************/
+void CookieC::SetPartitioned(const std::string& Partitioned)
+{
+   mPartitioned = StrCaseEq(Partitioned, PARTITIONED_TAG);
+   SetSecure(true);              // Partitioned always implies Secure
+}
+
+void CookieC::SetPartitioned(bool Partitioned)
+{
+   mPartitioned = Partitioned;
+   SetSecure(true);              // Partitioned always implies Secure
+} 
+
+/*=****************************************************************************
+**
+** bool CookieC::IsSecure() const
+**
+** DESCRIPTION :
+**
+** RETURN VALUE:
+**                                                                           */
+/*=***************************************************************************/
+bool CookieC::IsStoredInPartitiondStorage() const
+{
+   return mPartitioned;
+}
+
+/*=****************************************************************************
+**
 ** bool CookieC::IsSessionCookie() const
 **
 ** DESCRIPTION :
@@ -655,6 +701,10 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
          case 'P':
             if (StrCaseEq(Name, PATH_TAG))
                SetPath(Value);
+            else if (StrCaseEq(Name, PARTITIONED_TAG))
+            {
+               SetPartitioned(true);
+            }
             break;
          case 'S':
             if (StrCaseEq(Name, SECURE_TAG))
@@ -711,6 +761,9 @@ const std::string& CookieC::ToString() const
       if (mSecure)
          oss << "; " << SECURE_TAG;
 
+      if (mPartitioned)
+         oss << "; " << PARTITIONED_TAG;
+
       if (mHttpOnly)
          oss << "; " << HTTPONLY_TAG;
 
@@ -728,7 +781,7 @@ const std::string& CookieC::ToString() const
 int main(int argc, char* argv[])
 {
     // Example usage
-    std::string CookieStr = "name=value; domain=#HttpOnly_example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; secure";
+    std::string CookieStr = "name=value; domain=#HttpOnly_example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; Partitioned";
     CookieC* Cookie = new CookieC();
     if (Cookie)
     {
@@ -741,12 +794,13 @@ int main(int argc, char* argv[])
         std::cout << "Cookie Secure: " << Cookie->IsSecure() << std::endl;
         std::cout << "Cookie HttpOnly: " << Cookie->IsHttpOnly() << std::endl;
         std::cout << "Cookie SameSite: " << (Cookie->GetSameSite().empty() ? "(NULL)" : Cookie->GetSameSite()) << std::endl;
+        std::cout << "Cookie Partitioned: " << Cookie->IsStoredInPartitiondStorage() << std::endl;
 
 
         delete Cookie;  // Could use unique_ptr to avoid explicit deletion
     }
 
-    CookieC* Cookie2 = CookieC::Create("name", "value", "example.com", "/", "secure", time(nullptr), "Lax");
+    CookieC* Cookie2 = CookieC::Create("name", "value", "example.com", "/", "secure", "partitioned", time(nullptr), "Lax");
     if (Cookie2)
     {
       std::cout << "Cookie2: " << Cookie2->ToString() << std::endl;
