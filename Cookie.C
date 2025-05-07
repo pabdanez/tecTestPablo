@@ -68,9 +68,11 @@ void TrimQuotes(std::string& Str)
 bool StrCaseEq(const std::string& Str1, const std::string& Str2)
 {
 #ifdef _WIN32
-   return (_stricmp(Str1.c_str(), Str2.c_str()) == 0);
+   return ((Str1.length() == Str2.length())
+           && _stricmp(Str1.c_str(), Str2.c_str()) == 0);
 #else
-   return (strcasecmp(Str1.c_str(), Str2.c_str()) == 0);
+   return ((Str1.length() == Str2.length())
+           && strcasecmp(Str1.c_str(), Str2.c_str()) == 0);
 #endif
 }
 
@@ -135,12 +137,12 @@ void SplitNameValue(const std::string& Parameter, std::string& Name, std::string
    else
    {
       Value = Parameter.substr(EqPos + 1);
+      TrimQuotes(Name);             // Value field may have quotes
    }
 
    TrimSpaces(Name);
    TrimQuotes(Name); 
 }
-
 
 }  // Anonymous namespace
 
@@ -370,7 +372,7 @@ void CookieC::SetDomain(const std::string& Domain)
 {
    if (Domain.starts_with(HTTPONLY_PREFIX))
    {
-      mDomain = Domain.substr(10);
+      mDomain = Domain.substr(HTTPONLY_PREFIX.length());
       mHttpOnly = true;
    }
    else
@@ -502,6 +504,10 @@ const std::string& CookieC::GetExpires() const
 /*=***************************************************************************/
 void CookieC::SetSecure(const std::string& Secure)
 {
+   // Careful, if SetSecure() is evaluated after SetPartitioned()
+   // there may be a case where Partitioned is true and Secure is false
+   // That is wrong according to the documentation.
+   // Impossible scenario in current code, but relevant for future developments.
    mSecure = StrCaseEq(Secure, SECURE_TAG);
 }
 
@@ -521,7 +527,7 @@ void CookieC::SetSecure(bool Secure)
 /*=***************************************************************************/
 bool CookieC::IsSecure() const
 {
-   return mSecure;
+   return mSecure;      // Probably better mSecure || mPartitioned but only mSecure should define this getter
 }
 
 /*=****************************************************************************
@@ -614,7 +620,7 @@ bool CookieC::IsSessionCookie() const
 /*=***************************************************************************/
 void CookieC::SetSameSite(const std::string& SameSite)
 {
-   mSameSite = SameSite;   // TODO: Check if the result is one of the expected?
+   mSameSite = SameSite;   // Maybe good idea to check if the result is one of the expected "Strict", "Lax", or "None"
 }
 
 /*=****************************************************************************
@@ -767,8 +773,6 @@ const std::string& CookieC::ToString() const
       if (mHttpOnly)
          oss << "; " << HTTPONLY_TAG;
 
-      // Partitioned?
-
       mHeaderFormat = oss.str();
    }
 
@@ -781,7 +785,7 @@ const std::string& CookieC::ToString() const
 int main(int argc, char* argv[])
 {
     // Example usage
-    std::string CookieStr = "name=value; domain=#HttpOnly_example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; Partitioned";
+    std::string CookieStr = "name=\"value\"; domain=#HttpOnly_example.com; path=/; expires=Wed, 21 Oct 2023 07:28:00 GMT; Partitioned";
     CookieC* Cookie = new CookieC();
     if (Cookie)
     {
