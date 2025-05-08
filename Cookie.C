@@ -704,7 +704,7 @@ bool CookieC::FromString(const std::string& CookieStr, const std::string& Domain
                if (ValueMaxAge < 0)
                   ValueMaxAge = 0;
                /* Max-Age is # seconds from now. So expiration will be <Now> + Value */
-               SetExpires(time(nullptr) + stoi(Value));
+               SetExpires(time(nullptr) + ValueMaxAge);
             }
             break;
          case 'P':
